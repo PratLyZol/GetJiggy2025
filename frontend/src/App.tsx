@@ -1,6 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CloudArrowUpIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
-
 interface Field {
   name: string;
   description: string;
@@ -12,6 +11,75 @@ interface ProcessedData {
   fields: Field[];
   summary: string;
 }
+
+function Button({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition duration-200"
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TextToSpeech() {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [audioUrl, setAudioUrl] = useState("");
+
+  const handleConvertToSpeech = async () => {
+    setLoading(true);
+    setError(null);
+    setAudioUrl("");
+    
+    try {
+      const response = await fetch("http://localhost:8000/api/generate-voice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate voice");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-screen bg-[#1C1C1C] flex flex-col items-center justify-start pt-16">
+      <h2 className="text-xl font-semibold text-white">Text-to-Speech</h2>
+      {loading ? (
+        <p className="text-gray-400">Loading...</p>
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
+      ) : (
+        <p className="text-gray-300">{text}</p>
+      )}
+      <Button onClick={handleConvertToSpeech} disabled={loading}>
+        Convert to Speech
+      </Button>
+      {audioUrl && (
+        <audio controls className="mt-4">
+          <source src={audioUrl} type="audio/mp3" />
+          Your browser does not support the audio element.
+        </audio>
+      )}
+    </div>
+  );
+}
+
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -69,8 +137,8 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#1C1C1C] flex flex-col items-center justify-start pt-16">
-      <div className="w-full max-w-lg mx-auto px-4">
+    <div className="w-screen min-h-screen bg-[#1C1C1C] flex flex-col items-center justify-start pt-16">
+      <div className="w-full px-8 justify-center">
         <h1 className="text-5xl font-light text-white text-center mb-3">
           DocumentProcessor
         </h1>
@@ -78,44 +146,44 @@ function App() {
           Upload any document and get a detailed breakdown of its form fields and requirements.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
-          <label className="w-full h-[160px] flex flex-col items-center justify-center border border-dashed border-gray-600 rounded-lg cursor-pointer bg-[#2C2C2C] hover:border-gray-400">
-            <CloudArrowUpIcon className="w-8 h-8 text-gray-400 mb-3" />
-            <p className="text-sm text-gray-400">Click to upload or drag and drop</p>
-            <p className="text-xs text-gray-500 mt-1">PDF, DOCX, CSV, JSON, or TXT</p>
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleFileChange}
-              accept=".pdf,.docx,.csv,.json,.txt"
-            />
-          </label>
-          
-          {file && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <DocumentTextIcon className="w-4 h-4" />
-              <span>{file.name}</span>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4 w-full">
+  <label className="w-full h-[160px] flex flex-col items-center justify-center border border-dashed border-gray-600 rounded-lg cursor-pointer bg-[#2C2C2C] hover:border-gray-400">
+    <CloudArrowUpIcon className="w-8 h-8 text-gray-400 mb-3" />
+    <p className="text-sm text-gray-400">Click to upload or drag and drop</p>
+    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, CSV, JSON, or TXT</p>
+    <input
+      type="file"
+      className="hidden"
+      onChange={handleFileChange}
+      accept=".pdf,.docx,.csv,.json,.txt"
+    />
+  </label>
 
-          <button
-            type="submit"
-            disabled={!file || loading}
-            className="w-full py-2.5 px-4 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </div>
-            ) : (
-              'Process File'
-            )}
-          </button>
-        </form>
+  {file && (
+    <div className="flex items-center gap-2 text-sm text-gray-400">
+      <DocumentTextIcon className="w-4 h-4" />
+      <span>{file.name}</span>
+    </div>
+  )}
+
+  <button
+    type="submit"
+    disabled={!file || loading}
+    className="w-full py-2.5 px-4 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {loading ? (
+      <div className="flex items-center justify-center">
+        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Processing...
+      </div>
+    ) : (
+      'Process File'
+    )}
+  </button>
+</form>
 
         {error && (
           <div className="mt-4 text-sm text-red-400 flex items-center justify-center gap-2">
@@ -168,6 +236,9 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Text-to-Speech Component */}
+        <TextToSpeech />
       </div>
     </div>
   )

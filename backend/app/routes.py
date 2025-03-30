@@ -5,6 +5,7 @@ import google.generativeai as genai
 from gtts import gTTS
 from .file_processor import process_file
 import json
+import re
 
 main = Blueprint('main', __name__)
 
@@ -18,25 +19,25 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'csv', 'json'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@main.route('/api/get-model-output', methods=['GET'])
-def get_model_output():
-    return jsonify({"text": model_output}), 200
-
 @main.route('/api/generate-voice', methods=['POST', 'OPTIONS'])
 def generate_voice():
+    global model_output
+    print("Generating voice...")
     if request.method == 'OPTIONS':
         response = jsonify({"message": 'CORS is working!'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response, 200
-    text = request.json.get('text')
-    if not text:
-        return jsonify({'error': 'Text is required'}), 400
+    
+    prompt = f"""Given the input create lyrics for a song. The song should tell the user the elements of the form that the user needs to fill out, make it around 80 to 100 words long, not longer, not shorter. Here is what the user needs to fill out: {model_output}"""
+    print(model_output)
+    response = model.generate_content(prompt)
+    text = response.text
+    text = re.sub(r'\(verse \d+\)|\(chorus\)', '', text, flags=re.IGNORECASE)
     tts = gTTS(text=text, lang='en')
     filename = 'output.mp3'
-    tts.save(filename)
+    tts.save("app/" + filename)
 
     response = send_file(filename, mimetype='audio/mpeg')
     response.headers.add('Access-Control-Allow-Origin', '*')
